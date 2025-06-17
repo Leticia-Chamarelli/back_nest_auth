@@ -40,8 +40,6 @@ Uma API de autenticação robusta desenvolvida com [NestJS](https://nestjs.com/)
 
 ```bash
 git clone https://github.com/seu-usuario/nest-auth-jwt.git
-
-cd nest-auth-jwt
 ```
 
 2. **Instale as dependências**
@@ -139,7 +137,7 @@ Você pode importar a collection do Postman que está incluída no projeto em `/
 
 - Clique em Import → Upload Files.
 
-- Selecione o arquivo `/docs/back_nest_auth.postman_collection.json`
+- Selecione o arquivo `back_nest_auth.postman_collection.json`
 
 - A collection será importada com todos os endpoints já configurados para teste.
 
@@ -178,10 +176,11 @@ Inclui:
 
 ## 🏛️ Arquitetura
 ```bash
+📁 .vscode
+│   └── settings.json
+│
 📁 src
 │
-├── 📁 .vscode
-│   └── settings.json
 ├── 📁 auth
 │   ├── 📁 dto
 │   │   ├── login.dto.ts
