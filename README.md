@@ -130,7 +130,7 @@ Casos cobertos:
 
 
 ## 📬 Testes via Postman
-Você pode importar a collection do Postman que está incluída no projeto em `/docs/back_nest_auth.postman_collection.json`
+Você pode importar a collection do Postman que está incluída no projeto em `back_nest_auth.postman_collection.json`
 
 ### Como usar:
 - Abra o Postman
