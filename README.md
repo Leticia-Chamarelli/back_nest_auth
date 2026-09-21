@@ -8,6 +8,7 @@ Uma API de autenticação robusta desenvolvida com [NestJS](https://nestjs.com/)
 
 - [📦 Tecnologias](#-tecnologias)
 - [🚀 Como rodar localmente](#-como-rodar-localmente)
+- [🐳 Como rodar com Docker](#-como-rodar-com-docker)
 - [⚙️ Variáveis de ambiente](#️-variáveis-de-ambiente)
 - [📜 Scripts disponíveis](#-scripts-disponíveis)
 - [🧪 Testes e2e](#-testes-e2e)
@@ -25,6 +26,7 @@ Uma API de autenticação robusta desenvolvida com [NestJS](https://nestjs.com/)
 - [NestJS](https://nestjs.com/)
 - [Passport](http://www.passportjs.org/) + JWT Strategy
 - [PostgreSQL](https://www.postgresql.org/) (via [DBeaver](https://dbeaver.io/))
+- [Docker](https://www.docker.com/) + Docker Compose
 - [TypeORM](https://typeorm.io/)
 - [dotenv](https://www.npmjs.com/package/dotenv)
 - [Supertest](https://www.npmjs.com/package/supertest)
@@ -65,11 +67,33 @@ npm install
 npm run start:dev
 ```
 
+## 🐳 Como rodar com Docker
+
+Alternativa ao passo a passo acima: o projeto já vem com `Dockerfile` e `docker-compose.yml`, que sobem a API e o Postgres juntos, sem precisar instalar Postgres na sua máquina.
+
+1. **Configure seu `.env`** com base no `.env.example` (o `docker-compose.yml` lê as variáveis de lá — só `DB_HOST`/`DB_PORT` são sobrescritos para apontar para o container do banco).
+2. **Suba tudo**
+```bash
+docker compose up --build
+```
+3. A API fica disponível em `http://localhost:3000` e o Swagger em `http://localhost:3000/api`.
+4. Para parar:
+```bash
+docker compose down
+```
+   (adicione `-v` para também apagar os dados do banco).
+
+Com `NODE_ENV=development` (padrão do `.env.example`), o schema é criado automaticamente na primeira subida. Com `NODE_ENV=production`, as migrations em `src/migrations` são aplicadas em vez do auto-sync — veja [Deploy e Produção](#️-deploy-e-produção).
+
 ## ⚙️ Variáveis de ambiente
 
 Crie um arquivo `.env` com base no `.env.example`:
 
 ```bash
+# ENVIRONMENT
+# "production" faz a aplicação rodar as migrations em vez de auto-sincronizar o schema
+NODE_ENV=development
+
 # JWT
 JWT_SECRET=your_jwt_secret_here
 JWT_REFRESH_SECRET=your_refresh_jwt_secret_here
@@ -128,6 +152,14 @@ Casos cobertos:
 5. POST /auth/logout  
    → Refresh_token revogado
 
+### Endpoints de usuários (`/users`, todos protegidos por JWT)
+
+| Rota | Descrição |
+|------|-----------|
+| `GET /users` | Lista todos os usuários (só `id`/`username`, sem senha/hash) |
+| `GET /users/:id` | Retorna um usuário |
+| `PATCH /users/:id` | Atualiza — **só o próprio dono da conta pode**, senão `403` |
+| `DELETE /users/:id` | Remove — **só o próprio dono da conta pode**, senão `403` |
 
 ## 📬 Testes via Postman
 Você pode importar a collection do Postman que está incluída no projeto em `back_nest_auth.postman_collection.json`
@@ -168,7 +200,13 @@ Inclui:
 
 ✅ Logout revoga o refresh
 
-✅ Middleware protege rotas privadas
+✅ Todas as rotas de `/users` exigem JWT válido
+
+✅ Um usuário só pode editar/apagar a própria conta (`403` ao tentar mexer em outra)
+
+✅ Senha e hash do refresh token nunca aparecem em nenhuma resposta da API
+
+✅ Boot falha explicitamente se `JWT_SECRET` não estiver configurado
 
 ✅ Variáveis sensíveis fora do código (.env)
 
@@ -184,7 +222,10 @@ Inclui:
 ├── 📁 auth
 │   ├── 📁 dto
 │   │   ├── login.dto.ts
-│   │   └── refresh.dto.ts
+│   │   ├── refresh.dto.ts
+│   │   └── register.dto.ts
+│   ├── 📁 interfaces
+│   │   └── jwt-payload.interface.ts
 │   ├── 📁 strategies
 │   │   └── jwt.strategy.ts
 │   ├── auth.controller.spec.ts
@@ -202,6 +243,7 @@ Inclui:
 │       └── request-with-user.interface.ts
 │
 ├── 📁 migrations
+│   ├── [timestamp]-CreateUserTable.ts
 │   └── [timestamp]-AddRefreshTokenToUser.ts
 │
 ├── 📁 users
@@ -221,11 +263,15 @@ Inclui:
 📁 test
 ├── app.e2e-spec.ts
 └── jest-e2e.json
+📄 .dockerignore
 📄 .env.example
+📄 .gitattributes
 📄 .gitignore
 📄 .prettierrc
 📄 back_nest_auth.postman_collection.json
 📄 data-source.ts
+📄 docker-compose.yml
+📄 Dockerfile
 📄 eslint.config.mjs
 📄 nest-cli.json
 📄 package-lock.json
@@ -272,6 +318,8 @@ Este projeto está configurado para deploy na plataforma Render, que oferece hos
 3. Configurar variáveis de ambiente no Render
 - Adicione todas as variáveis .env necessárias, incluindo:
 
+- `NODE_ENV=production` — **importante**: sem isso a aplicação continua usando `synchronize` (auto-sync de schema) em vez de rodar as migrations, o que não é recomendado em produção
+
 - `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME` para PostgreSQL
 
 - `JWT_SECRET`, `JWT_REFRESH_SECRET`
@@ -285,6 +333,8 @@ Este projeto está configurado para deploy na plataforma Render, que oferece hos
 - Você pode usar o banco de dados PostgreSQL oferecido pelo próprio Render ou outro serviço externo.
 
 - Configure as variáveis do banco no painel do Render.
+
+- Com `NODE_ENV=production`, as migrations em `src/migrations` rodam automaticamente no boot (`migrationsRun: true`), então não é necessário rodar `npm run typeorm:run` manualmente no Render.
 
 5. Adaptação da aplicação para a porta do Render
 no `seu main.ts`, certifique-se que a aplicação escute a porta da variável de ambiente PORT, assim:
