@@ -1,0 +1,16 @@
+node_modules
+dist
+coverage
+.git
+.gitignore
+.gitattributes
+.env
+.env.example
+*.md
+test
+**/*.spec.ts
+.vscode
+.idea
+Dockerfile
+docker-compose.yml
+.dockerignore
