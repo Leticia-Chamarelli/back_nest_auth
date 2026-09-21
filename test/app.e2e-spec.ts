@@ -191,3 +191,91 @@ describe('Auth (e2e)', () => {
     expect(expiredResponse.body).toHaveProperty('message');
   });
 });
+
+describe('Users authorization (e2e)', () => {
+  let app: INestApplication;
+  let server: Server;
+  let ownerToken: string;
+  let ownerId: number;
+  let otherToken: string;
+  let otherUserId: number;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+    server = app.getHttpServer() as Server;
+
+    const suffix = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    const ownerUsername = `owner_${suffix}`;
+    const otherUsername = `other_${suffix}`;
+
+    interface RegisterResponse {
+      user: { id: number; username: string };
+    }
+
+    const ownerRegister = await request(server)
+      .post('/auth/register')
+      .send({ username: ownerUsername, password: 'password123' })
+      .expect(201);
+    ownerId = (ownerRegister.body as RegisterResponse).user.id;
+
+    const otherRegister = await request(server)
+      .post('/auth/register')
+      .send({ username: otherUsername, password: 'password123' })
+      .expect(201);
+    otherUserId = (otherRegister.body as RegisterResponse).user.id;
+
+    const ownerLogin = await request(server)
+      .post('/auth/login')
+      .send({ username: ownerUsername, password: 'password123' })
+      .expect(201);
+    ownerToken = (ownerLogin.body as TokenPair).access_token;
+
+    const otherLogin = await request(server)
+      .post('/auth/login')
+      .send({ username: otherUsername, password: 'password123' })
+      .expect(201);
+    otherToken = (otherLogin.body as TokenPair).access_token;
+  });
+
+  afterAll(async () => {
+    await request(server)
+      .delete(`/users/${ownerId}`)
+      .set('Authorization', `Bearer ${ownerToken}`);
+    await request(server)
+      .delete(`/users/${otherUserId}`)
+      .set('Authorization', `Bearer ${otherToken}`);
+    await app.close();
+  });
+
+  it('should allow a user to update their own account', async () => {
+    await request(server)
+      .patch(`/users/${ownerId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ username: `owner_updated_${Date.now()}` })
+      .expect(200);
+  });
+
+  it('should forbid a user from updating another account', async () => {
+    const response = await request(server)
+      .patch(`/users/${otherUserId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ username: 'hijacked' })
+      .expect(403);
+
+    expect(response.body).toHaveProperty('message');
+  });
+
+  it('should forbid a user from deleting another account', async () => {
+    const response = await request(server)
+      .delete(`/users/${otherUserId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(403);
+
+    expect(response.body).toHaveProperty('message');
+  });
+});

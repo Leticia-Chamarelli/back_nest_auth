@@ -6,6 +6,8 @@ import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -17,7 +19,12 @@ import { AppService } from './app.service';
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
       autoLoadEntities: true,
-      synchronize: true,
+      // Auto-sync is convenient in dev but can silently alter/drop
+      // columns in production; production applies committed migrations
+      // instead (set NODE_ENV=production in the deploy environment).
+      synchronize: !isProduction,
+      migrationsRun: isProduction,
+      migrations: [__dirname + '/migrations/*{.ts,.js}'],
     }),
     UsersModule,
     AuthModule,
