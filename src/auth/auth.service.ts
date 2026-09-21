@@ -2,6 +2,18 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import { JwtPayload } from './interfaces/jwt-payload.interface';
+
+export interface ValidatedUser {
+  id: number;
+  username: string;
+  refreshToken: string | null;
+}
+
+export interface AuthenticatedUser {
+  id: number;
+  username: string;
+}
 
 @Injectable()
 export class AuthService {
@@ -10,7 +22,10 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async validateUser(username: string, password: string): Promise<any> {
+  async validateUser(
+    username: string,
+    password: string,
+  ): Promise<ValidatedUser | null> {
     const user = await this.usersService.findByUsername(username);
     if (!user) {
       return null;
@@ -20,12 +35,15 @@ export class AuthService {
       return null;
     }
 
-    const { password: pwd, ...result } = user;
-    return result;
+    return {
+      id: user.id,
+      username: user.username,
+      refreshToken: user.refreshToken,
+    };
   }
 
-  async login(user: any) {
-    const payload = { username: user.username, sub: user.id };
+  async login(user: AuthenticatedUser) {
+    const payload: JwtPayload = { username: user.username, sub: user.id };
 
     const access_token = this.jwtService.sign(payload, {
       expiresIn: '15m',
@@ -48,7 +66,7 @@ export class AuthService {
 
   async refreshToken(refresh_token: string) {
     try {
-      const payload = this.jwtService.verify(refresh_token, {
+      const payload = this.jwtService.verify<JwtPayload>(refresh_token, {
         secret: process.env.JWT_REFRESH_SECRET,
       });
 
@@ -57,12 +75,18 @@ export class AuthService {
         throw new UnauthorizedException('Refresh token not found');
       }
 
-      const tokenMatches = await bcrypt.compare(refresh_token, user.refreshToken);
+      const tokenMatches = await bcrypt.compare(
+        refresh_token,
+        user.refreshToken,
+      );
       if (!tokenMatches) {
         throw new UnauthorizedException('Refresh token does not match');
       }
 
-      const newPayload = { username: payload.username, sub: payload.sub };
+      const newPayload: JwtPayload = {
+        username: payload.username,
+        sub: payload.sub,
+      };
 
       const newAccessToken = this.jwtService.sign(newPayload, {
         expiresIn: '15m',
@@ -75,13 +99,16 @@ export class AuthService {
       });
 
       const hashedRefreshToken = await bcrypt.hash(newRefreshToken, 10);
-      await this.usersService.updateRefreshToken(payload.sub, hashedRefreshToken);
+      await this.usersService.updateRefreshToken(
+        payload.sub,
+        hashedRefreshToken,
+      );
 
       return {
         access_token: newAccessToken,
         refresh_token: newRefreshToken,
       };
-    } catch (err) {
+    } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
   }

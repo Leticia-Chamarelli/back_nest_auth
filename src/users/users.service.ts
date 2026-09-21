@@ -13,7 +13,10 @@ export class UsersService {
 
   async create(username: string, password: string): Promise<User> {
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = this.usersRepository.create({ username, password: hashedPassword });
+    const user = this.usersRepository.create({
+      username,
+      password: hashedPassword,
+    });
     return this.usersRepository.save(user);
   }
 
@@ -29,7 +32,11 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { id } });
   }
 
-  async update(id: number, username?: string, password?: string): Promise<User> {
+  async update(
+    id: number,
+    username?: string,
+    password?: string,
+  ): Promise<User> {
     const user = await this.findOne(id);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -55,15 +62,17 @@ export class UsersService {
     return { message: 'User deleted successfully' };
   }
 
-async updateRefreshToken(userId: number, refreshToken: string | null): Promise<void> {
-  const user = await this.usersRepository.findOne({ where: { id: userId } });
-  if (!user) throw new Error('User not found');
-  user.refreshToken = refreshToken;
-  await this.usersRepository.save(user);
-}
+  async updateRefreshToken(
+    userId: number,
+    refreshToken: string | null,
+  ): Promise<void> {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) throw new Error('User not found');
+    user.refreshToken = refreshToken;
+    await this.usersRepository.save(user);
+  }
 
   async findById(id: number): Promise<User | null> {
     return this.usersRepository.findOne({ where: { id } });
   }
-
 }

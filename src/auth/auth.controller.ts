@@ -7,7 +7,6 @@ import {
   Get,
   Req,
   ConflictException,
-  BadRequestException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
@@ -15,6 +14,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RequestWithUser } from '../common/interfaces/request-with-user.interface';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh.dto';
+import { RegisterDto } from './dto/register.dto';
 import {
   ApiTags,
   ApiBody,
@@ -33,16 +33,7 @@ export class AuthController {
 
   @Post('register')
   @ApiOperation({ summary: 'Register new user' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        username: { type: 'string', example: 'newuser' },
-        password: { type: 'string', example: 'password123' },
-      },
-      required: ['username', 'password'],
-    },
-  })
+  @ApiBody({ type: RegisterDto })
   @ApiResponse({
     status: 201,
     description: 'User created successfully',
@@ -68,15 +59,17 @@ export class AuthController {
     status: 400,
     description: 'Missing fields',
   })
-  async register(
-    @Body('username') username: string,
-    @Body('password') password: string,
-  ) {
-    const existing = await this.usersService.findByUsername(username);
+  async register(@Body() registerDto: RegisterDto) {
+    const existing = await this.usersService.findByUsername(
+      registerDto.username,
+    );
     if (existing) {
       throw new ConflictException('Username already exists');
     }
-    const user = await this.usersService.create(username, password);
+    const user = await this.usersService.create(
+      registerDto.username,
+      registerDto.password,
+    );
     return {
       message: 'User created',
       user: { id: user.id, username: user.username },
