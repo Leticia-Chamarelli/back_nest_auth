@@ -21,6 +21,7 @@
   },
   "include": [
     "src/**/*",
-    "data-source.ts"       
+    "data-source.ts",
+    "test/**/*"
   ]
 }

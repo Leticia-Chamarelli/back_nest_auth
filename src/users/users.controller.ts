@@ -6,17 +6,27 @@ import {
   Param,
   Body,
   NotFoundException,
+  UseGuards,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
+import { User } from './user.entity';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiParam,
   ApiBody,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 
+function toSafeUser(user: User): Omit<User, 'password' | 'refreshToken'> {
+  return { id: user.id, username: user.username };
+}
+
 @ApiTags('Users')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
   constructor(private usersService: UsersService) {}
@@ -34,7 +44,8 @@ export class UsersController {
     },
   })
   async findAll() {
-    return this.usersService.findAll();
+    const users = await this.usersService.findAll();
+    return users.map(toSafeUser);
   }
 
   @Get(':id')
@@ -53,7 +64,7 @@ export class UsersController {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    return user;
+    return toSafeUser(user);
   }
 
   @Patch(':id')
@@ -81,7 +92,8 @@ export class UsersController {
     @Body('username') username: string,
     @Body('password') password: string,
   ) {
-    return this.usersService.update(id, username, password);
+    const user = await this.usersService.update(id, username, password);
+    return toSafeUser(user);
   }
 
   @Delete(':id')
